@@ -1,14 +1,14 @@
-const CACHE = "habit-app-test-daybook-v5";
+const CACHE = "habit-app-test-daybook-v6";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=5",
-  "./daybook-v4.css?v=5",
-  "./migration-v4.js?v=5",
-  "./daybook-v4.js?v=5",
-  "./app-v4.js?v=5",
-  "./continuity-v4.js?v=5",
-  "./manifest.webmanifest?v=5",
+  "./styles.css?v=6",
+  "./daybook-v4.css?v=6",
+  "./migration-v4.js?v=6",
+  "./daybook-v4.js?v=6",
+  "./app-v4.js?v=6",
+  "./continuity-v4.js?v=6",
+  "./manifest.webmanifest?v=6",
   "./icon-192.png",
   "./icon-512.png"
 ];
@@ -31,9 +31,34 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  const request = event.request;
+  const url = new URL(request.url);
+  const appCode = url.origin === self.location.origin &&
+    (request.mode === "navigate" || ["document", "script", "style"].includes(request.destination));
+
+  if (appCode) {
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        try {
+          const response = await fetch(request);
+          if (response && response.ok) cache.put(request, response.clone());
+          return response;
+        } catch (_) {
+          return (await cache.match(request)) || (await cache.match("./index.html"));
+        }
+      })
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.open(CACHE).then((cache) =>
-      cache.match(event.request).then((cached) => cached || fetch(event.request))
-    )
+    caches.open(CACHE).then(async (cache) => {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      const response = await fetch(request);
+      if (response && response.ok) cache.put(request, response.clone());
+      return response;
+    })
   );
 });
