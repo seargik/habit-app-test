@@ -1,0 +1,104 @@
+/* Daybook test layer */
+.testBanner{
+  margin:0 -12px;
+  padding:7px 12px;
+  text-align:center;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.3px;
+  background:#78350f;
+  color:#fef3c7;
+  border-bottom:1px solid #92400e;
+}
+.tabs{grid-template-columns:repeat(5,minmax(0,1fr))}
+.habitDescription{white-space:pre-wrap;overflow:visible}
+.planNote{min-height:100px}
+.planAddRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.planAddRow button{min-width:48px;font-size:20px;padding:8px 12px}
+.planTasks{display:grid;gap:10px;margin-top:10px}
+.planTask{border:1px solid var(--line);border-radius:14px;padding:10px;background:#0f1628}
+.planTaskDone{opacity:.68}
+.planTaskDone .planTaskText{text-decoration:line-through}
+.planTaskMain{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.planTaskMain button{min-width:46px}
+.planTaskActions{display:flex;gap:8px;margin-top:8px}
+.planTaskActions button{flex:1}
+.planLinkLabel{margin-top:8px}
+select,input[type="month"]{
+  width:100%;
+  border:1px solid var(--line);
+  background:#0f1628;
+  color:var(--text);
+  border-radius:12px;
+  padding:10px;
+  font-size:14px;
+}
+.calendarWeekdays,.calendarGrid{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:6px;
+}
+.calendarWeekdays{margin:12px 0 6px;color:var(--muted);font-size:11px;text-align:center}
+.calendarDay{
+  min-height:68px;
+  padding:7px 4px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:space-between;
+  border:1px solid var(--line);
+  background:#0f1628;
+  font-size:12px;
+}
+.calendarDay strong{font-size:14px}
+.calendarDay span{font-size:10px;color:var(--muted);line-height:1.2;text-align:left}
+.calendarHasData{border-color:#2563eb}
+.calendarSelected{outline:2px solid #60a5fa}
+.calendarBlank{min-height:68px}
+.photoPreviewWrap{
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  background:#080d19;
+  margin-bottom:10px;
+}
+.photoPreviewWrap img{
+  display:block;
+  width:100%;
+  max-height:520px;
+  object-fit:contain;
+}
+.photoImportLabel{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0;
+  border-radius:13px;
+  padding:11px 13px;
+  background:var(--card2);
+  color:var(--text);
+  font-weight:700;
+  font-size:14px;
+  cursor:pointer;
+}
+.photoImportLabel input{display:none}
+.metricVisibilityOptions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.metricToggle{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#0f1628;
+  color:var(--text);
+}
+.metricToggle input{width:auto}
+@media (max-width:520px){
+  .testBanner{margin-left:-8px;margin-right:-8px}
+  .tabs button{font-size:11px;padding:9px 2px}
+  .calendarDay,.calendarBlank{min-height:58px}
+  .calendarDay span{font-size:9px}
+  .metricVisibilityOptions{grid-template-columns:1fr}
+}
