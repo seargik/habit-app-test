@@ -1,14 +1,15 @@
-const CACHE = "habit-app-test-daybook-v6";
+const CACHE = "habit-app-test-daybook-v7";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=6",
-  "./daybook-v4.css?v=6",
-  "./migration-v4.js?v=6",
-  "./daybook-v4.js?v=6",
-  "./app-v4.js?v=6",
-  "./continuity-v4.js?v=6",
-  "./manifest.webmanifest?v=6",
+  "./styles.css?v=7",
+  "./daybook-v4.css?v=7",
+  "./migration-v4.js?v=7",
+  "./daybook-v4.js?v=7",
+  "./app-v4.js?v=7",
+  "./continuity-v4.js?v=7",
+  "./ux-fixes-v7.js?v=7",
+  "./manifest.webmanifest?v=7",
   "./icon-192.png",
   "./icon-512.png"
 ];
