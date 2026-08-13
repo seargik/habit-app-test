@@ -24,7 +24,7 @@
   }
 
   function selectedDate() {
-    return $("dateInput")?.value || new Date().toISOString().slice(0, 10);
+    return $("dateInput")?.value || localToday();
   }
 
   function localToday() {
@@ -67,8 +67,7 @@
     const db = await openDb();
     return new Promise((resolve, reject) => {
       const store = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE);
-      const index = store.index("date");
-      const request = index.getAll(date);
+      const request = store.index("date").getAll(date);
       request.onsuccess = () => resolve((request.result || []).sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || ""))));
       request.onerror = () => reject(request.error);
     });
@@ -162,8 +161,8 @@
       #photoDayCard{display:none!important}
       .mediaGallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
       .mediaItem{border:1px solid var(--line);border-radius:14px;padding:8px;background:#0f1628;min-width:0}
-      .mediaThumb{height:165px;border-radius:10px;overflow:hidden;background:#070b13;display:flex;align-items:center;justify-content:center;cursor:zoom-in}
-      .mediaThumb img{display:block;width:100%;height:100%;object-fit:cover}
+      .mediaThumb{min-height:165px;border-radius:10px;overflow:hidden;background:#070b13;display:flex;align-items:center;justify-content:center;cursor:zoom-in}
+      .mediaThumb img{display:block;width:100%;height:auto;max-height:55vh;object-fit:contain}
       .mediaFields{display:grid;gap:6px;margin-top:7px}.mediaFields input{margin:0}
       .mediaItemFooter{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px}.mediaItemFooter .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .mediaDelete{padding:5px 8px;min-width:34px}
@@ -172,10 +171,15 @@
       #mediaFullscreen img{display:block;width:100%;height:100%;object-fit:contain}.mediaFullClose{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px;z-index:2}
       .mediaExportGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.mediaExportGrid label{margin:0}.mediaExportGrid select,.mediaExportGrid input{margin-top:5px}
       .mediaExportActions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.mediaExportActions button,.mediaExportActions label{flex:1;min-width:145px;margin:0}
-      .mediaPreviewBox{max-height:340px;overflow:auto;white-space:pre-wrap;background:#0f1628;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;font-size:12px;line-height:1.4}
+      .mediaPreviewBox{max-height:70vh;overflow:auto;background:#0f1628;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;font-size:12px;line-height:1.45}
       .mediaTopicFilters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}.mediaTopicFilters label{display:flex;gap:6px;align-items:flex-start;margin:0;padding:7px;border:1px solid var(--line);border-radius:10px}.mediaTopicFilters input{width:auto;margin-top:2px}
       .mediaImportLabel{display:flex;align-items:center;justify-content:center;border-radius:13px;padding:10px 12px;background:var(--card2);font-weight:700;cursor:pointer}.mediaImportLabel input{display:none}
-      @media(max-width:520px){.mediaGallery{grid-template-columns:1fr}.mediaThumb{height:33vh;min-height:190px}.mediaExportGrid{grid-template-columns:1fr}.mediaTopicFilters{grid-template-columns:1fr}}
+      .previewSummary{color:var(--muted);font-size:12px;margin-bottom:10px}
+      .previewGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+      .previewPhoto,.previewDay{border:1px solid var(--line);border-radius:12px;background:#0b1220;overflow:hidden;margin-bottom:10px}
+      .previewImage{background:#05080f;display:flex;align-items:center;justify-content:center;cursor:zoom-in}.previewImage img{display:block;width:100%;height:auto;max-height:320px;object-fit:contain}
+      .previewMeta,.previewDay{padding:9px}.previewDate{font-weight:800}.previewTags{color:#93c5fd;margin-top:4px}.previewComment{margin-top:5px;white-space:pre-wrap}.previewTopic{border-top:1px solid var(--line);padding-top:7px;margin-top:7px}.previewStatus{font-size:10px;color:#93c5fd;text-transform:uppercase}
+      @media(max-width:520px){.mediaGallery,.previewGrid{grid-template-columns:1fr}.mediaThumb{min-height:190px}.mediaThumb img{max-height:none}.mediaExportGrid,.mediaTopicFilters{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
@@ -248,10 +252,7 @@
     ensureEntryPhotoCount(date, items.length);
 
     if (!items.length) {
-      const empty = document.createElement("div");
-      empty.className = "hint";
-      empty.textContent = "Фото на этот день пока нет.";
-      gallery.appendChild(empty);
+      gallery.innerHTML = `<div class="hint">Фото на этот день пока нет.</div>`;
       return;
     }
 
@@ -346,9 +347,7 @@
     const map = new Map();
     for (const habit of data?.habits || []) {
       const existing = map.get(habit.id);
-      if (!existing || (!habit.endDate && existing.endDate) || String(habit.startDate || "") > String(existing.startDate || "")) {
-        map.set(habit.id, habit);
-      }
+      if (!existing || (!habit.endDate && existing.endDate) || String(habit.startDate || "") > String(existing.startDate || "")) map.set(habit.id, habit);
     }
     return Array.from(map.values()).sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   }
@@ -362,42 +361,21 @@
     card.innerHTML = `
       <div class="sectionTitle"><h2>Media / filtered export</h2><span id="mediaExportCount" class="pill">0 фото</span></div>
       <div class="mediaExportGrid">
-        <label>Период
-          <select id="mediaRangeMode">
-            <option value="all">Вся история</option>
-            <option value="7">Последние 7 дней</option>
-            <option value="30">Последние 30 дней</option>
-            <option value="90">Последние 90 дней</option>
-            <option value="custom">Последние X дней</option>
-          </select>
-        </label>
+        <label>Период<select id="mediaRangeMode"><option value="all">Вся история</option><option value="7">Последние 7 дней</option><option value="30">Последние 30 дней</option><option value="90">Последние 90 дней</option><option value="custom">Последние X дней</option></select></label>
         <label id="mediaCustomDaysWrap" class="hidden">X дней<input id="mediaCustomDays" type="number" min="1" step="1" value="30"></label>
-        <label>Тэг
-          <select id="mediaTagFilter"><option value="">Все тэги</option></select>
-        </label>
-        <label>Что экспортировать
-          <select id="mediaExportMode">
-            <option value="photos_only">Только фото</option>
-            <option value="photos_meta" selected>Фото + комментарий + тэг</option>
-            <option value="photos_comment">Фото + комментарий</option>
-            <option value="text_all">Только текст — все темы</option>
-            <option value="text_topics">Только текст — выбранные темы</option>
-            <option value="everything">Всё всё всё</option>
-          </select>
-        </label>
+        <label>Тэг<select id="mediaTagFilter"><option value="">Все тэги</option></select></label>
+        <label>Что экспортировать<select id="mediaExportMode"><option value="photos_only">Только фото</option><option value="photos_meta" selected>Фото + комментарий + тэг</option><option value="photos_comment">Фото + комментарий</option><option value="text_all">Только текст — все темы</option><option value="text_topics">Только текст — выбранные темы</option><option value="everything">Всё всё всё</option></select></label>
       </div>
-      <div id="mediaTopicWrap" class="hidden topSpace">
-        <div class="small">Темы для текстового экспорта</div>
-        <div id="mediaTopicFilters" class="mediaTopicFilters"></div>
-      </div>
+      <div id="mediaTopicWrap" class="hidden topSpace"><div class="small">Темы для текстового экспорта</div><div id="mediaTopicFilters" class="mediaTopicFilters"></div></div>
       <div class="mediaExportActions">
-        <button id="mediaPreviewBtn" type="button">Preview фильтра</button>
-        <button id="mediaExportBtn" class="btnGood" type="button">Export package</button>
+        <button id="mediaPreviewBtn" type="button">Preview content</button>
+        <button id="mediaExportHtmlBtn" class="btnGood" type="button">Export album HTML</button>
+        <button id="mediaBackupBtn" type="button">Backup JSON</button>
         <button id="mediaShareBtn" class="btnBlue" type="button">Save photo files / Share</button>
-        <label class="mediaImportLabel">Import media package<input id="mediaImportFile" type="file" accept=".json,application/json"></label>
+        <label class="mediaImportLabel">Import media backup<input id="mediaImportFile" type="file" accept=".json,application/json"></label>
       </div>
       <div id="mediaPreviewBox" class="mediaPreviewBox hidden"></div>
-      <div class="hint topSpace">Save photo files / Share создаёт отдельные изображения + manifest.csv + captions.txt. Это удобно сохранить в Files как папку/набор файлов для будущего коллажа или видео.</div>`;
+      <div class="hint topSpace">HTML = читаемый альбом с фото и текстом. JSON = технический backup для обратного импорта. Save photo files / Share = отдельные изображения + manifest.csv + captions.txt для Files/видео.</div>`;
     tab.appendChild(card);
 
     $("mediaRangeMode").addEventListener("change", () => {
@@ -411,7 +389,8 @@
       refreshExportCount();
     });
     $("mediaPreviewBtn").addEventListener("click", previewExport);
-    $("mediaExportBtn").addEventListener("click", exportPackage);
+    $("mediaExportHtmlBtn").addEventListener("click", exportHtmlAlbum);
+    $("mediaBackupBtn").addEventListener("click", exportBackupJson);
     $("mediaShareBtn").addEventListener("click", sharePhotoFiles);
     $("mediaImportFile").addEventListener("change", importPackage);
   }
@@ -419,18 +398,18 @@
   async function refreshExportFilters() {
     ensureExportCard();
     const photos = await allMedia().catch(() => []);
-    const tags = Array.from(new Set(photos.flatMap((p) => normalizeTags(p.tag)))).sort((a, b) => a.localeCompare(b));
+    const tagList = Array.from(new Set(photos.flatMap((p) => normalizeTags(p.tag)))).sort((a, b) => a.localeCompare(b));
     const select = $("mediaTagFilter");
     if (select) {
       const current = select.value;
       select.innerHTML = `<option value="">Все тэги</option>`;
-      for (const tag of tags) {
+      for (const tag of tagList) {
         const option = document.createElement("option");
         option.value = tag;
         option.textContent = tag;
         select.append(option);
       }
-      if (tags.includes(current)) select.value = current;
+      if (tagList.includes(current)) select.value = current;
     }
 
     const data = readData();
@@ -458,11 +437,10 @@
 
   async function selectedPhotos(filters) {
     const start = rangeStart(filters.rangeMode, filters.customDays);
-    const rows = (await allMedia().catch(() => []))
+    return (await allMedia().catch(() => []))
       .filter((p) => rangeFilterDate(p.date, start))
       .filter((p) => !filters.tag || normalizeTags(p.tag).includes(filters.tag))
       .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
-    return rows;
   }
 
   function textExport(filters) {
@@ -487,70 +465,75 @@
         if (!hasText && !record?.status) continue;
         topics.push({ id, name: habit.name || id, status: record?.status || "", comment: record?.comment || "", notes: record?.notes || "" });
       }
+
       if (selectedOnly) {
         if (topics.length) entries.push({ date, topics });
       } else {
-        entries.push({
-          date,
-          dayNote: entry.dayNote || "",
-          planNote: entry.planNote || "",
-          planTasks: (entry.planTasks || []).map((t) => ({ text: t.text || "", done: Boolean(t.done) })),
-          topics
-        });
+        const hasAny = Boolean(String(entry.dayNote || "").trim() || String(entry.planNote || "").trim() || (entry.planTasks || []).length || topics.length);
+        if (hasAny) entries.push({ date, dayNote: entry.dayNote || "", planNote: entry.planNote || "", planTasks: (entry.planTasks || []).map((t) => ({ text: t.text || "", done: Boolean(t.done) })), topics });
       }
     }
     return { entries };
   }
 
-  async function buildPackage() {
+  function includesPhotos(mode) { return ["photos_only", "photos_meta", "photos_comment", "everything"].includes(mode); }
+  function includesText(mode) { return ["text_all", "text_topics", "everything"].includes(mode); }
+  function htmlEscape(value) { return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[ch]); }
+  function nl2br(value) { return htmlEscape(value).replace(/\n/g, "<br>"); }
+  function modeLabel(mode) { return ({ photos_only: "Только фото", photos_meta: "Фото + комментарий + тэг", photos_comment: "Фото + комментарий", text_all: "Только текст — все темы", text_topics: "Только текст — выбранные темы", everything: "Всё всё всё" })[mode] || mode; }
+
+  function photoMetaHtml(photo, mode, prefix) {
+    let html = `<div class="${prefix}Date">${htmlEscape(photo.date)}</div>`;
+    if ((mode === "photos_meta" || mode === "everything") && normalizeTags(photo.tag).length) html += `<div class="${prefix}Tags">${normalizeTags(photo.tag).map((tag) => `<span>#${htmlEscape(tag)}</span>`).join(" ")}</div>`;
+    if (["photos_meta", "photos_comment", "everything"].includes(mode) && photo.comment) html += `<div class="${prefix}Comment">${nl2br(photo.comment)}</div>`;
+    return html;
+  }
+
+  function photosHtml(photos, mode, prefix = "preview") {
+    if (!photos.length) return `<div class="${prefix}Empty">Нет фото в текущем фильтре.</div>`;
+    return `<div class="${prefix}Grid">${photos.map((photo) => `<article class="${prefix}Photo"><div class="${prefix}Image"${prefix === "preview" ? ` data-full-src="${photo.dataUrl}"` : ""}><img src="${photo.dataUrl}" alt="${htmlEscape(photo.comment || photo.name || photo.date)}"></div><div class="${prefix}Meta">${photoMetaHtml(photo, mode, prefix)}</div></article>`).join("")}</div>`;
+  }
+
+  function topicsHtml(topics, prefix) {
+    if (!topics?.length) return "";
+    return topics.map((topic) => `<section class="${prefix}Topic"><h4>${htmlEscape(topic.name)}${topic.status ? ` <span class="${prefix}Status">${htmlEscape(topic.status)}</span>` : ""}</h4>${topic.comment ? `<div><b>Comment:</b> ${nl2br(topic.comment)}</div>` : ""}${topic.notes ? `<div><b>Notes:</b> ${nl2br(topic.notes)}</div>` : ""}</section>`).join("");
+  }
+
+  function textHtml(entries, prefix = "preview") {
+    if (!entries.length) return `<div class="${prefix}Empty">Нет текста в текущем фильтре.</div>`;
+    return entries.map((entry) => `<article class="${prefix}Day"><h3>${htmlEscape(entry.date)}</h3>${entry.dayNote ? `<section><h4>Day note</h4><div>${nl2br(entry.dayNote)}</div></section>` : ""}${entry.planNote ? `<section><h4>План</h4><div>${nl2br(entry.planNote)}</div></section>` : ""}${entry.planTasks?.length ? `<section><h4>Tasks</h4><ul>${entry.planTasks.map((task) => `<li>${task.done ? "✓" : "○"} ${htmlEscape(task.text)}</li>`).join("")}</ul></section>` : ""}${topicsHtml(entry.topics, prefix)}</article>`).join("");
+  }
+
+  async function buildSelection() {
     const filters = exportFilters();
-    const includePhotos = ["photos_only", "photos_meta", "photos_comment", "everything"].includes(filters.mode);
-    const includeText = ["text_all", "text_topics", "everything"].includes(filters.mode);
-    const photos = includePhotos ? await selectedPhotos(filters) : [];
-    const exportedPhotos = photos.map((p) => {
-      const base = { id: p.id, date: p.date, name: p.name, type: p.type, size: p.size, dataUrl: p.dataUrl, createdAt: p.createdAt, updatedAt: p.updatedAt };
-      if (filters.mode === "photos_comment") return { ...base, comment: p.comment || "" };
-      if (filters.mode === "photos_meta" || filters.mode === "everything") return { ...base, comment: p.comment || "", tag: p.tag || "" };
-      return base;
-    });
-    const pack = {
-      app: "Life Tracker TEST",
-      type: "life-tracker-media-package",
-      version: 2,
-      exportedAt: new Date().toISOString(),
-      filters,
-      photos: exportedPhotos
-    };
-    if (includeText) pack.text = textExport(filters);
-    if (filters.mode === "everything") pack.appData = readData();
-    return { pack, photos };
+    return { filters, photos: includesPhotos(filters.mode) ? await selectedPhotos(filters) : [], text: includesText(filters.mode) ? textExport(filters).entries : [] };
   }
 
   async function refreshExportCount() {
     if (!$("mediaExportCount")) return;
-    const filters = exportFilters();
-    const photos = await selectedPhotos(filters);
-    $("mediaExportCount").textContent = `${photos.length} фото`;
+    const selection = await buildSelection();
+    const parts = [];
+    if (includesPhotos(selection.filters.mode)) parts.push(`${selection.photos.length} фото`);
+    if (includesText(selection.filters.mode)) parts.push(`${selection.text.length} дней текста`);
+    $("mediaExportCount").textContent = parts.join(" · ") || "0";
   }
 
   async function previewExport() {
-    const { pack, photos } = await buildPackage();
     const box = $("mediaPreviewBox");
     if (!box) return;
-    const lines = [];
-    lines.push(`Mode: ${pack.filters.mode}`);
-    lines.push(`Period: ${pack.filters.rangeMode === "all" ? "all history" : `from ${rangeStart(pack.filters.rangeMode, pack.filters.customDays)} to ${localToday()}`}`);
-    lines.push(`Tag: ${pack.filters.tag || "all"}`);
-    lines.push(`Photos: ${photos.length}`);
-    if (pack.text) lines.push(`Text days: ${pack.text.entries.length}`);
-    lines.push("");
-    for (const p of photos.slice(0, 120)) {
-      lines.push(`${p.date} · ${p.name || p.id}${p.tag ? ` · #${p.tag}` : ""}${p.comment ? ` · ${p.comment}` : ""}`);
-    }
-    if (photos.length > 120) lines.push(`… ещё ${photos.length - 120} фото`);
-    if (pack.filters.mode === "text_topics") lines.push(`\nTopics: ${(pack.filters.topicIds || []).join(", ") || "none"}`);
-    box.textContent = lines.join("\n");
+    const selection = await buildSelection();
+    const f = selection.filters;
+    const period = f.rangeMode === "all" ? "Вся история" : `${rangeStart(f.rangeMode, f.customDays)} → ${localToday()}`;
+    let html = `<div class="previewSummary"><b>${htmlEscape(modeLabel(f.mode))}</b> · ${htmlEscape(period)} · tag: ${htmlEscape(f.tag || "все")}</div>`;
+    if (includesPhotos(f.mode)) html += photosHtml(selection.photos, f.mode, "preview");
+    if (includesText(f.mode)) html += `<h3>Текст</h3>${textHtml(selection.text, "preview")}`;
+    box.innerHTML = html;
     box.classList.remove("hidden");
+    box.querySelectorAll("[data-full-src]").forEach((el) => el.addEventListener("click", () => openFullscreen(el.dataset.fullSrc)));
+  }
+
+  function albumCss() {
+    return `:root{color-scheme:dark;background:#0b1020;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;padding:22px;background:#0b1020;color:#f3f4f6;line-height:1.45}main{max-width:1000px;margin:auto}.albumHeader{margin-bottom:20px}.albumSub{color:#9ca3af;font-size:13px}.albumGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.albumPhoto{border:1px solid #273244;border-radius:16px;background:#111827;overflow:hidden}.albumImage{display:flex;align-items:center;justify-content:center;background:#05080f;min-height:180px}.albumImage img{display:block;width:100%;height:auto;max-height:75vh;object-fit:contain}.albumMeta{padding:10px 12px}.albumDate{font-weight:800}.albumTags{margin-top:5px;color:#93c5fd}.albumTags span{margin-right:6px}.albumComment{margin-top:7px;white-space:pre-wrap}.albumDay{border:1px solid #273244;border-radius:16px;background:#111827;padding:14px;margin-bottom:14px}.albumDay h3{margin:0 0 10px}.albumDay h4{margin:9px 0 5px}.albumTopic{border-top:1px solid #273244;padding-top:8px;margin-top:8px}.albumStatus{font-size:11px;color:#93c5fd;text-transform:uppercase}.albumEmpty{padding:18px;border:1px dashed #374151;border-radius:12px;color:#9ca3af}.albumSection{margin:24px 0 10px}@media(max-width:680px){body{padding:12px}.albumGrid{grid-template-columns:1fr}.albumImage img{max-height:none}}@media print{body{background:#fff;color:#111}.albumPhoto,.albumDay{break-inside:avoid;background:#fff;border-color:#ddd}.albumImage{background:#fff}.albumSub{color:#555}}`;
   }
 
   function downloadBlob(name, blob) {
@@ -562,51 +545,40 @@
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  async function exportPackage() {
-    const { pack } = await buildPackage();
-    const stamp = localToday();
-    downloadBlob(`life-tracker-export-${pack.filters.mode}-${stamp}.json`, new Blob([JSON.stringify(pack)], { type: "application/json" }));
+  async function exportHtmlAlbum() {
+    const selection = await buildSelection();
+    const f = selection.filters;
+    const period = f.rangeMode === "all" ? "Вся история" : `${rangeStart(f.rangeMode, f.customDays)} → ${localToday()}`;
+    let body = "";
+    if (includesPhotos(f.mode)) body += `<h2 class="albumSection">Фото</h2>${photosHtml(selection.photos, f.mode, "album")}`;
+    if (includesText(f.mode)) body += `<h2 class="albumSection">Текст</h2>${textHtml(selection.text, "album")}`;
+    const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Life Tracker Album ${localToday()}</title><style>${albumCss()}</style></head><body><main><header class="albumHeader"><h1>Life Tracker Album</h1><div class="albumSub">${htmlEscape(modeLabel(f.mode))} · ${htmlEscape(period)} · tag: ${htmlEscape(f.tag || "все")} · exported ${htmlEscape(new Date().toLocaleString())}</div></header>${body}</main></body></html>`;
+    downloadBlob(`life-tracker-album-${f.mode}-${localToday()}.html`, new Blob(["\ufeff", html], { type: "text/html;charset=utf-8" }));
   }
 
-  function safePart(value) {
-    return String(value || "").trim().replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  async function exportBackupJson() {
+    const f = exportFilters();
+    const photos = await selectedPhotos(f);
+    const pack = { app: "Life Tracker TEST", type: "life-tracker-media-package", version: 2, exportedAt: new Date().toISOString(), filters: f, photos: photos.map((p) => ({ ...p })) };
+    if (includesText(f.mode)) pack.text = textExport(f);
+    if (f.mode === "everything") pack.appData = readData();
+    downloadBlob(`life-tracker-media-backup-${localToday()}.json`, new Blob([JSON.stringify(pack)], { type: "application/json;charset=utf-8" }));
   }
 
-  function extFrom(photo) {
-    const original = String(photo.name || "");
-    const match = /\.([a-zA-Z0-9]{2,5})$/.exec(original);
-    if (match) return `.${match[1].toLowerCase()}`;
-    const type = photo.type || dataUrlToBlob(photo.dataUrl).type;
-    if (type.includes("png")) return ".png";
-    if (type.includes("heic")) return ".heic";
-    if (type.includes("webp")) return ".webp";
-    return ".jpg";
-  }
-
-  function csvEscape(value) {
-    const s = String(value ?? "");
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  }
+  function safePart(value) { return String(value || "").trim().replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); }
+  function extFrom(photo) { const match = /\.([a-zA-Z0-9]{2,5})$/.exec(String(photo.name || "")); if (match) return `.${match[1].toLowerCase()}`; const type = photo.type || dataUrlToBlob(photo.dataUrl).type; if (type.includes("png")) return ".png"; if (type.includes("heic")) return ".heic"; if (type.includes("webp")) return ".webp"; return ".jpg"; }
+  function csvEscape(value) { const s = String(value ?? ""); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
 
   async function sharePhotoFiles() {
     const filters = exportFilters();
     const photos = await selectedPhotos(filters);
-    if (!photos.length) {
-      alert("В текущем фильтре нет фото.");
-      return;
-    }
-
-    const files = [];
-    const manifest = [["filename", "date", "comment", "tag", "original_name"]];
-    const captions = [];
-    const daySeq = new Map();
-
+    if (!photos.length) return alert("В текущем фильтре нет фото.");
+    const files = [], manifest = [["filename", "date", "comment", "tag", "original_name"]], captions = [], daySeq = new Map();
     for (const photo of photos) {
-      const seq = (daySeq.get(photo.date) || 0) + 1;
-      daySeq.set(photo.date, seq);
+      const seq = (daySeq.get(photo.date) || 0) + 1; daySeq.set(photo.date, seq);
       const tagPart = safePart(photo.tag ? normalizeTags(photo.tag)[0] : "");
       const filename = `${photo.date}_${String(seq).padStart(2, "0")}${tagPart ? `_${tagPart}` : ""}${extFrom(photo)}`;
       const blob = dataUrlToBlob(photo.dataUrl);
@@ -614,67 +586,33 @@
       manifest.push([filename, photo.date, photo.comment || "", photo.tag || "", photo.name || ""]);
       captions.push(`${filename}\t${photo.date}\t${photo.tag || ""}\t${photo.comment || ""}`);
     }
-
-    files.push(new File([manifest.map((row) => row.map(csvEscape).join(",")).join("\n")], "manifest.csv", { type: "text/csv" }));
-    files.push(new File([captions.join("\n")], "captions.txt", { type: "text/plain" }));
-
-    try {
-      if (navigator.share && (!navigator.canShare || navigator.canShare({ files }))) {
-        await navigator.share({ files, title: "Life Tracker photos" });
-        return;
-      }
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      console.warn("Share failed; falling back to downloads", err);
-    }
-
+    files.push(new File([manifest.map((row) => row.map(csvEscape).join(",")).join("\n")], "manifest.csv", { type: "text/csv;charset=utf-8" }));
+    files.push(new File([captions.join("\n")], "captions.txt", { type: "text/plain;charset=utf-8" }));
+    try { if (navigator.share && (!navigator.canShare || navigator.canShare({ files }))) { await navigator.share({ files, title: "Life Tracker photos" }); return; } }
+    catch (err) { if (err?.name === "AbortError") return; console.warn("Share failed; falling back to downloads", err); }
     for (const file of files) downloadBlob(file.name, file);
   }
 
   async function importPackage(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const file = event.target.files?.[0]; if (!file) return;
     try {
       const pack = JSON.parse(await file.text());
-      if (pack?.type !== "life-tracker-media-package" || !Array.isArray(pack.photos)) throw new Error("Это не Life Tracker media package");
+      if (pack?.type !== "life-tracker-media-package" || !Array.isArray(pack.photos)) throw new Error("Это не Life Tracker media backup");
       let count = 0;
       for (const photo of pack.photos) {
         if (!photo?.dataUrl || !photo.date) continue;
-        await putMedia({
-          id: photo.id || `import_${Date.now()}_${count}_${Math.random().toString(36).slice(2, 6)}`,
-          date: photo.date,
-          dataUrl: photo.dataUrl,
-          name: photo.name || `photo-${photo.date}`,
-          type: photo.type || dataUrlToBlob(photo.dataUrl).type,
-          size: photo.size || dataUrlToBlob(photo.dataUrl).size,
-          comment: photo.comment || "",
-          tag: photo.tag || "",
-          createdAt: photo.createdAt || new Date().toISOString(),
-          updatedAt: photo.updatedAt || new Date().toISOString()
-        });
+        await putMedia({ id: photo.id || `import_${Date.now()}_${count}_${Math.random().toString(36).slice(2, 6)}`, date: photo.date, dataUrl: photo.dataUrl, name: photo.name || `photo-${photo.date}`, type: photo.type || dataUrlToBlob(photo.dataUrl).type, size: photo.size || dataUrlToBlob(photo.dataUrl).size, comment: photo.comment || "", tag: photo.tag || "", createdAt: photo.createdAt || new Date().toISOString(), updatedAt: photo.updatedAt || new Date().toISOString() });
         count += 1;
       }
-      alert(`Импортировано фото: ${count}`);
-      await renderMediaDay();
-      await refreshExportFilters();
-    } catch (err) {
-      alert(`Media import failed: ${err.message}`);
-    } finally {
-      event.target.value = "";
-    }
+      alert(`Импортировано фото: ${count}`); await renderMediaDay(); await refreshExportFilters();
+    } catch (err) { alert(`Media import failed: ${err.message}`); }
+    finally { event.target.value = ""; }
   }
 
   async function init() {
     injectCss();
     await migrateOldPhotos();
-    setTimeout(async () => {
-      ensureMediaCard();
-      ensureFullscreen();
-      ensureExportCard();
-      await renderMediaDay();
-      await refreshExportFilters();
-    }, 120);
-
+    setTimeout(async () => { ensureMediaCard(); ensureFullscreen(); ensureExportCard(); await renderMediaDay(); await refreshExportFilters(); }, 120);
     $("dateInput")?.addEventListener("change", () => setTimeout(renderMediaDay, 80));
     ["prevDay", "nextDay"].forEach((id) => $(id)?.addEventListener("click", () => setTimeout(renderMediaDay, 80)));
     document.querySelector('[data-tab="today"]')?.addEventListener("click", () => setTimeout(renderMediaDay, 80));
