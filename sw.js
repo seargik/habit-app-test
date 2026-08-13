@@ -1,5 +1,5 @@
-const CACHE="habit-app-test-main-v11b";
-const ASSETS=["./","./index.html","./styles.css?v=9","./daybook-v4.css?v=9","./migration-v4.js?v=9","./daybook.js?v=9","./app-v4.js?v=9","./progress.js?v=11","./manifest.webmanifest?v=9","./icon-192.png","./icon-512.png"];
+const CACHE="habit-app-test-main-v12";
+const ASSETS=["./","./index.html","./styles.css?v=9","./daybook-v4.css?v=9","./migration-v4.js?v=9","./daybook.js?v=9","./app-v4.js?v=9","./progress.js?v=11","./media.js?v=12","./progress-summary.js?v=12","./manifest.webmanifest?v=9","./icon-192.png","./icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting();});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith("habit-app-test-")&&k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
 self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;const r=e.request,u=new URL(r.url),code=u.origin===self.location.origin&&(r.mode==="navigate"||["document","script","style"].includes(r.destination));if(code){e.respondWith(caches.open(CACHE).then(async c=>{try{const x=await fetch(r,{cache:"no-store"});if(x&&x.ok)c.put(r,x.clone());return x;}catch(_){return(await c.match(r))||(await c.match("./index.html"));}}));return;}e.respondWith(caches.open(CACHE).then(async c=>{const hit=await c.match(r);if(hit)return hit;const x=await fetch(r);if(x&&x.ok)c.put(r,x.clone());return x;}));});
