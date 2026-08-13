@@ -1,14 +1,13 @@
-const CACHE = "life-tracker-v4-phase1d";
+const CACHE = "habit-app-test-daybook-v5";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=4",
-  "./migration-v4.js?v=4",
-  "./legacy-carryover-v4.js?v=4",
-  "./general-guard-v4.js?v=4",
-  "./metric-visibility-v4.js?v=4",
-  "./app-v4.js?v=4",
-  "./manifest.webmanifest",
+  "./styles.css?v=5",
+  "./daybook-v4.css?v=5",
+  "./migration-v4.js?v=5",
+  "./daybook-v4.js?v=5",
+  "./app-v4.js?v=5",
+  "./manifest.webmanifest?v=5",
   "./icon-192.png",
   "./icon-512.png"
 ];
@@ -22,7 +21,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
       keys
-        .filter((key) => key.startsWith("life-tracker-") && key !== CACHE)
+        .filter((key) => key.startsWith("habit-app-test-") && key !== CACHE)
         .map((key) => caches.delete(key))
     ))
   );
