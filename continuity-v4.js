@@ -1,1 +1,0 @@
-(()=>{const s=document.createElement('script');s.src='./ux-fixes-v8.js?v=8';s.defer=true;document.head.appendChild(s);})();
