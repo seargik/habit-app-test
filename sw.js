@@ -7,6 +7,7 @@ const ASSETS = [
   "./migration-v4.js?v=5",
   "./daybook-v4.js?v=5",
   "./app-v4.js?v=5",
+  "./continuity-v4.js?v=5",
   "./manifest.webmanifest?v=5",
   "./icon-192.png",
   "./icon-512.png"
