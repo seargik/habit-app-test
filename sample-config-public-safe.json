@@ -1,0 +1,48 @@
+{
+  "app": "Life Tracker PWA",
+  "type": "config-only",
+  "appVersion": "3.0-public-safe",
+  "note": "Public-safe example. Edit inside app or replace labels with private names only on your device.",
+  "habits": [
+    {
+      "id": "h1",
+      "name": "Body",
+      "min": "Minimum version"
+    },
+    {
+      "id": "h2",
+      "name": "Food",
+      "min": "Minimum version"
+    },
+    {
+      "id": "h3",
+      "name": "Focus",
+      "min": "Minimum version"
+    },
+    {
+      "id": "h4",
+      "name": "Money",
+      "min": "Minimum version"
+    },
+    {
+      "id": "h5",
+      "name": "Project",
+      "min": "Minimum version"
+    },
+    {
+      "id": "h6",
+      "name": "Relationship",
+      "min": "Minimum version"
+    },
+    {
+      "id": "h7",
+      "name": "Mind",
+      "min": "Minimum version"
+    },
+    {
+      "id": "h8",
+      "name": "Recovery",
+      "min": "Minimum version"
+    }
+  ]
+}

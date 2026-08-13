@@ -1,0 +1,10 @@
+# private exports and local notes
+*.csv
+life-tracker-full-*.json
+life-tracker-config-*.json
+exports/
+backup/
+private/
+notes/
+screenshots/
+.DS_Store
