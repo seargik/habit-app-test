@@ -1,11 +1,12 @@
 {
-  "name": "Life Tracker",
-  "short_name": "Life Tracker",
+  "name": "Life Tracker TEST",
+  "short_name": "Life TEST",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0b1020",
   "theme_color": "#111827",
-  "description": "Public-safe habit tracker shell. Private data stays in local storage and export files.",
+  "description": "Test build of the local-first Life Tracker PWA. Private data stays on this device.",
   "icons": [
     {
       "src": "icon-192.png",
