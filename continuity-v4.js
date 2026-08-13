@@ -1,6 +1,7 @@
 (() => {
   "use strict";
   const STORE_KEY = "lifeTrackerData.v4";
+  const SCALE_5_START = "2026-08-13";
   const $ = (id) => document.getElementById(id);
 
   function escapeHtml(value) {
@@ -26,6 +27,19 @@
     const d = new Date(`${date}T12:00:00`);
     d.setDate(d.getDate() + days);
     return d.toISOString().slice(0, 10);
+  }
+
+  function refreshGeneralDisplay() {
+    const max = selectedDate() >= SCALE_5_START ? 5 : 10;
+    const input = $("general");
+    if (input) input.max = String(max);
+    const label = document.querySelector('label[for="general"]');
+    if (label) label.textContent = `General 0–${max}`;
+    const pill = $("dayScorePill");
+    if (pill && pill.textContent.includes("General")) {
+      const next = pill.textContent.replace(/\/(5|10)\b/, `/${max}`);
+      if (next !== pill.textContent) pill.textContent = next;
+    }
   }
 
   function taskByLink(data, link) {
@@ -86,9 +100,19 @@
   document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       ensureCard();
+      const pill = $("dayScorePill");
+      if (pill) {
+        const observer = new MutationObserver(refreshGeneralDisplay);
+        observer.observe(pill, { childList: true, characterData: true, subtree: true });
+      }
       document.querySelector('[data-tab="progress"]')?.addEventListener("click", () => setTimeout(render, 0));
       $("refreshProgress")?.addEventListener("click", () => setTimeout(render, 0));
-      $("dateInput")?.addEventListener("change", () => setTimeout(render, 0));
+      $("dateInput")?.addEventListener("change", () => setTimeout(() => { render(); refreshGeneralDisplay(); }, 0));
+      $("saveBtn")?.addEventListener("click", () => setTimeout(refreshGeneralDisplay, 0));
+      document.querySelectorAll(".tabs button").forEach((button) => {
+        button.addEventListener("click", () => setTimeout(refreshGeneralDisplay, 0));
+      });
+      refreshGeneralDisplay();
     }, 0);
   });
 })();
