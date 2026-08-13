@@ -6,19 +6,101 @@
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Life Tracker">
-  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Life Tracker TEST">
+  <link rel="manifest" href="./manifest.webmanifest?v=5">
   <link rel="apple-touch-icon" href="./icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=4">
-  <title>Life Tracker</title>
+  <link rel="stylesheet" href="./styles.css?v=5">
+  <link rel="stylesheet" href="./daybook-v4.css?v=5">
+  <title>Life Tracker TEST</title>
+  <script>
+    (() => {
+      "use strict";
+      const prefix = "habitAppTest.";
+      const proto = Storage.prototype;
+      const originalGet = proto.getItem;
+      const originalSet = proto.setItem;
+      const originalRemove = proto.removeItem;
+      const ls = window.localStorage;
+      const appKeys = new Set(["lifeTrackerData.v3", "lifeTrackerData.v4"]);
+
+      function mapped(key) {
+        return appKeys.has(String(key)) ? prefix + String(key) : String(key);
+      }
+
+      function hasDaybookExtension(entry) {
+        return Boolean(
+          entry &&
+          (
+            Object.prototype.hasOwnProperty.call(entry, "planNote") ||
+            Object.prototype.hasOwnProperty.call(entry, "planTasks") ||
+            Object.prototype.hasOwnProperty.call(entry, "photo")
+          )
+        );
+      }
+
+      function preserveDaybookExtensions(existingRaw, incomingRaw) {
+        if (!existingRaw || !incomingRaw) return incomingRaw;
+        try {
+          const existing = JSON.parse(existingRaw);
+          const incoming = JSON.parse(incomingRaw);
+          if (!existing?.entries || !incoming?.entries) return incomingRaw;
+
+          Object.entries(existing.entries).forEach(([date, oldEntry]) => {
+            const newEntry = incoming.entries[date];
+            if (!newEntry) {
+              if (hasDaybookExtension(oldEntry)) incoming.entries[date] = oldEntry;
+              return;
+            }
+            ["planNote", "planTasks", "photo"].forEach((field) => {
+              if (!Object.prototype.hasOwnProperty.call(newEntry, field) &&
+                  Object.prototype.hasOwnProperty.call(oldEntry, field)) {
+                newEntry[field] = oldEntry[field];
+              }
+            });
+          });
+          return JSON.stringify(incoming);
+        } catch (_) {
+          return incomingRaw;
+        }
+      }
+
+      ["lifeTrackerData.v3", "lifeTrackerData.v4"].forEach((key) => {
+        const testKey = prefix + key;
+        if (originalGet.call(ls, testKey) == null) {
+          const current = originalGet.call(ls, key);
+          if (current != null) originalSet.call(ls, testKey, current);
+        }
+      });
+
+      proto.getItem = function(key) {
+        return originalGet.call(this, this === ls ? mapped(key) : key);
+      };
+      proto.setItem = function(key, value) {
+        if (this !== ls) return originalSet.call(this, key, value);
+        const rawKey = String(key);
+        const testKey = mapped(rawKey);
+        let nextValue = String(value);
+        if (rawKey === "lifeTrackerData.v4") {
+          nextValue = preserveDaybookExtensions(originalGet.call(ls, testKey), nextValue);
+        }
+        return originalSet.call(ls, testKey, nextValue);
+      };
+      proto.removeItem = function(key) {
+        return originalRemove.call(this, this === ls ? mapped(key) : key);
+      };
+
+      window.__LIFE_TRACKER_TEST_STORAGE__ = true;
+    })();
+  </script>
 </head>
 <body>
+  <div class="testBanner">TEST MODE · habit-app-test · production storage is isolated</div>
   <div class="wrap">
     <header>
       <div class="top">
         <div>
           <h1>Life Tracker</h1>
-          <div class="small">local-first · private data stays on this device</div>
+          <div class="small">local-first · test copy · private data stays on this device</div>
         </div>
         <button id="helpBtn" class="btnBlue" type="button">?</button>
       </div>
@@ -30,7 +112,7 @@
       </div>
 
       <nav class="tabs" aria-label="Main tabs">
-        <button type="button" data-tab="today" class="active">Today</button>
+        <button type="button" data-tab="today" class="active">Daybook</button>
         <button type="button" data-tab="progress">Progress</button>
         <button type="button" data-tab="export">Export</button>
         <button type="button" data-tab="settings">Settings</button>
@@ -47,8 +129,8 @@
 
           <div class="metrics">
             <div class="metricBox metricPrimary">
-              <label for="general">General 0–10</label>
-              <input id="general" type="number" inputmode="decimal" min="0" max="10" step="0.1" placeholder="7.5">
+              <label for="general">General 0–5</label>
+              <input id="general" type="number" inputmode="decimal" min="0" max="5" step="0.1" placeholder="3.5">
             </div>
             <div class="metricBox">
               <label for="sleep">Sleep</label>
@@ -62,9 +144,9 @@
               <label for="stress">Stress 1–5</label>
               <input id="stress" type="number" inputmode="numeric" min="1" max="5" placeholder="3">
             </div>
-            <div class="metricBox">
-              <label for="body">Body / metric</label>
-              <input id="body" type="text" placeholder="optional">
+            <div class="metricBox hidden" aria-hidden="true">
+              <label for="body">Legacy Body / metric</label>
+              <input id="body" type="text" tabindex="-1">
             </div>
           </div>
 
@@ -77,7 +159,7 @@
             <h2>Life categories</h2>
             <button id="badDayBtn" class="btnWarn" type="button">Bad day</button>
           </div>
-          <div class="hint">Done = strong version. Min = meaningful minimum. Skip = consciously not applicable. Fail = went against the intended direction.</div>
+          <div class="hint">На карточке показано короткое описание. Полные MIN / DONE и Persistent Notes открываются через ⓘ / 📝.</div>
           <div id="habits"></div>
           <div class="sep"></div>
           <button id="saveBtn" class="btnGood fullWidth" type="button">Save day</button>
@@ -106,7 +188,7 @@
         <div class="grid grid2">
           <div class="card">
             <h2>Export / backup</h2>
-            <p class="hint">Full JSON contains your private definitions, comments, notes and progress. Keep it private.</p>
+            <p class="hint">Full JSON содержит текстовые данные Daybook, definitions, plan и photo metadata. Сами изображения экспортируются отдельно в Photos backup.</p>
             <div class="footerBtns">
               <button id="exportJson" class="btnGood" type="button">Full JSON</button>
               <button id="exportCsv" class="btnBlue" type="button">CSV</button>
@@ -116,7 +198,7 @@
           </div>
           <div class="card">
             <h2>Import JSON file</h2>
-            <p class="hint">Imports legacy v3 full JSON or current v4 JSON. The migration never deletes the original phone v3 storage key.</p>
+            <p class="hint">Imports legacy v3 full JSON or current v4 JSON. Test storage is isolated from production storage.</p>
             <input id="importFile" class="fileInput" type="file" accept=".json,application/json">
           </div>
         </div>
@@ -130,7 +212,7 @@
         </div>
         <div class="card">
           <h2>Migration safety</h2>
-          <div class="quote">v4 uses a separate localStorage key. Existing lifeTrackerData.v3 remains untouched as rollback data after the first v4 migration.</div>
+          <div class="quote">habit-app-test uses separate prefixed localStorage keys. Existing production lifeTrackerData.v3/v4 keys are not written by this test page.</div>
         </div>
       </section>
 
@@ -142,13 +224,13 @@
           <div class="sep"></div>
           <div class="footerBtns">
             <button id="resetDefaults" class="btnBad" type="button">Reset current v4 defaults</button>
-            <button id="forceUpdate" class="btnWarn" type="button">Reload app update</button>
+            <button id="forceUpdate" class="btnWarn" type="button">Reload test app update</button>
           </div>
-          <p class="hint">Before a production update: Export → Full JSON. Same URL/domain keeps browser storage, and v4 additionally preserves the old v3 key.</p>
+          <p class="hint">Persistent Notes are intentionally compact here; the large editor is in Daybook → category details.</p>
         </div>
         <div class="card">
           <h2>Privacy rule</h2>
-          <div class="quote">Public GitHub = app code only. Private checklist/progress = local phone storage + exported JSON.</div>
+          <div class="quote">Public GitHub = app code only. Private checklist/progress/photos = local device storage + exported backups.</div>
         </div>
       </section>
     </main>
@@ -158,10 +240,10 @@
     <div class="modalContent">
       <div class="top"><h2>How to use</h2><button id="closeHelp" type="button">Close</button></div>
       <ol>
-        <li>Keep the same GitHub Pages URL when updating.</li>
-        <li>Export Full JSON before a production update.</li>
-        <li>Old dates use their historical definitions; current dates use the v4 definitions.</li>
-        <li>Use ⓘ / 📝 on a category for its definition, persistent context and extended daily note.</li>
+        <li>Daybook = оценка дня, Day note, план, Photo of the Day и категории.</li>
+        <li>Полные MIN / DONE и большие Persistent Notes открываются через ⓘ / 📝.</li>
+        <li>Calendar показывает внутренние записи Life Tracker. iPhone Calendar sync требует будущего native iOS layer.</li>
+        <li>Перед переносом в production делай Full JSON + Photos backup.</li>
       </ol>
     </div>
   </div>
@@ -174,16 +256,14 @@
       <label>DONE</label><div id="habitDetailDone" class="quote"></div>
       <label for="habitContextNotes">Persistent topic Notes / Context</label>
       <textarea id="habitContextNotes" placeholder="Principles, strategy, reference notes, checklists..."></textarea>
-      <label for="habitDailyNotes">Extended note for this day</label>
-      <textarea id="habitDailyNotes" placeholder="Longer detail for this specific date..."></textarea>
+      <label for="habitDailyNotes" class="hidden">Extended note for this day</label>
+      <textarea id="habitDailyNotes" class="hidden" aria-hidden="true"></textarea>
       <button id="saveHabitDetail" class="btnGood fullWidth topSpace" type="button">Save notes</button>
     </div>
   </div>
 
-  <script src="./migration-v4.js?v=4" defer></script>
-  <script src="./legacy-carryover-v4.js?v=4" defer></script>
-  <script src="./general-guard-v4.js?v=4" defer></script>
-  <script src="./metric-visibility-v4.js?v=4" defer></script>
-  <script src="./app-v4.js?v=4" defer></script>
+  <script src="./migration-v4.js?v=5" defer></script>
+  <script src="./daybook-v4.js?v=5" defer></script>
+  <script src="./app-v4.js?v=5" defer></script>
 </body>
 </html>
